@@ -19,9 +19,12 @@ app.get('/ping', (req, res) => {
 
 // Настройка CORS
 app.use(cors({
-    origin: 'https://poznanie-backend-1.onrender.com',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: [
+        'https://poznanie-frontend-g3ty.onrender.com',
+        'http://localhost:5173'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
 }));
 
 app.use(express.json());
