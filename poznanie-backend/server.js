@@ -1,6 +1,3 @@
-app.get('/ping', (req, res) => {
-  res.send('pong');
-});
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -14,6 +11,10 @@ const userRoutes = require('./routes/users');
 const likeRoutes = require('./routes/likes');
 
 const app = express();
+
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
 
 // Настройка CORS
 app.use(cors({
