@@ -1,3 +1,6 @@
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
