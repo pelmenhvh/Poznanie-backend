@@ -14,7 +14,7 @@ const app = express();
 
 // Настройка CORS
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: 'https://poznanie.bulgin-1717.workers.dev',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -58,7 +58,7 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Файл не загружен' });
   }
-  const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   res.json({ imageUrl });
 });
 
