@@ -19,7 +19,7 @@ app.get('/ping', (req, res) => {
 
 // Настройка CORS
 app.use(cors({
-    origin: 'https://poznanie.bulgin-1717.workers.dev',
+    origin: 'https://poznanie-backend-1.onrender.com',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
