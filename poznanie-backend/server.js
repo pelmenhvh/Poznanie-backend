@@ -63,7 +63,8 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Файл не загружен' });
   }
-  const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const imageUrl = `${BASE_URL}/uploads/${req.file.filename}`;
   res.json({ imageUrl });
 });
 
