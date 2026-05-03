@@ -14,9 +14,14 @@ const app = express();
 
 // Настройка CORS
 app.use(cors({
-    origin: 'https://poznanie.bulgin-1717.workers.dev',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: [
+    'https://poznanie-frontend-g3ty.onrender.com',
+    'https://poznanie.bulgin-1717.workers.dev',
+    'http://localhost:5173'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 app.use(express.json());
