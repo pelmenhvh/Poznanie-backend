@@ -24,6 +24,17 @@ pool.connect((err, client, release) => {
     }
 });
 
+
+// ТЕСТОВЫЙ МАРШРУТ ДЛЯ ДИАГНОСТИКИ
+app.get('/test', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        message: 'Backend is running!',
+        time: new Date().toISOString(),
+        env: process.env.NODE_ENV
+    });
+});
+
 // ===== CORS =====
 const allowedOrigins = process.env.NODE_ENV === 'production'
     ? ['https://poznanie-frontend-g3ty.onrender.com']
