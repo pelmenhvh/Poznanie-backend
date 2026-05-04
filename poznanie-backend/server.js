@@ -115,6 +115,46 @@ if (process.env.NODE_ENV === 'production') {
     }
 }
 
+
+// ДИАГНОСТИКА БД (только чтение, данные не меняет)
+app.get('/api/debug/check-db', async (req, res) => {
+    try {
+        // Проверяем подключение
+        const timeResult = await pool.query('SELECT NOW() as time');
+        
+        // Считаем пользователей (без раскрытия данных)
+        const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
+        
+        // Считаем статьи
+        const articleCount = await pool.query('SELECT COUNT(*) as count FROM articles');
+        
+        // Проверяем наличие таблиц
+        const tables = await pool.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name
+        `);
+        
+        res.json({
+            success: true,
+            dbTime: timeResult.rows[0].time,
+            databaseUrl: process.env.DATABASE_URL ? 'set' : 'not set',
+            userCount: parseInt(userCount.rows[0].count),
+            articleCount: parseInt(articleCount.rows[0].count),
+            tables: tables.rows.map(t => t.table_name),
+            message: 'БД доступна!'
+        });
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message,
+            hint: 'Проверь DATABASE_URL и SSL настройки'
+        });
+    }
+});
+
+
 // ===== ЗАПУСК =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
