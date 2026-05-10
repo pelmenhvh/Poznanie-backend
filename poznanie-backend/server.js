@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');  // ← ЭТОТ МОДУЛЬ БЫЛ ПРОПУЩЕН
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -20,7 +21,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Настройка хранилища для картинок
+// Настройка хранилища для Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -36,7 +37,7 @@ const upload = multer({
 });
 // =================================
 
-// Динамический CORS
+// Динамический CORS для твоего домена
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://poznanie-frontend-g3ty.onrender.com']
   : ['http://localhost:3000'];
@@ -50,7 +51,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Эндпоинт для загрузки картинок (теперь в Cloudinary)
+// Upload endpoint (теперь в Cloudinary)
 app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   // Cloudinary сам возвращает URL картинки
@@ -67,7 +68,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// Продакшен: отдаём фронтенд
+// Продакшен: отдаём сбилженный фронтенд (если лежит в ../frontend/dist)
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
   if (fs.existsSync(frontendPath)) {
@@ -81,4 +82,5 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
+    console.log(`🌍 CORS allowed for: ${allowedOrigins.join(', ')}`);
 });
