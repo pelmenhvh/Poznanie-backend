@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');  // ← ЭТОТ МОДУЛЬ БЫЛ ПРОПУЩЕН
+const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -13,6 +13,14 @@ const userRoutes = require('./routes/users');
 const likeRoutes = require('./routes/likes');
 
 const app = express();
+
+// ========== ДИАГНОСТИКА - ПОКАЖЕТ, ВИДИТ ЛИ СЕРВЕР ПЕРЕМЕННЫЕ ==========
+console.log('\n========== ДИАГНОСТИКА CLOUDINARY ==========');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || '❌ НЕ НАЙДЕН');
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '✅ НАЙДЕН (скрыт)' : '❌ НЕ НАЙДЕН');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '✅ НАЙДЕН (скрыт)' : '❌ НЕ НАЙДЕН');
+console.log('=============================================\n');
 
 // ===== НАСТРОЙКА CLOUDINARY =====
 cloudinary.config({
@@ -53,8 +61,11 @@ app.use(express.json());
 
 // Upload endpoint (теперь в Cloudinary)
 app.post('/api/upload', upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-  // Cloudinary сам возвращает URL картинки
+  if (!req.file) {
+    console.log('❌ Ошибка: файл не загружен');
+    return res.status(400).json({ error: 'Файл не загружен' });
+  }
+  console.log('✅ Файл загружен в Cloudinary:', req.file.path);
   res.json({ imageUrl: req.file.path });
 });
 
@@ -68,7 +79,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// Продакшен: отдаём сбилженный фронтенд (если лежит в ../frontend/dist)
+// Продакшен: отдаём сбилженный фронтенд
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
   if (fs.existsSync(frontendPath)) {
