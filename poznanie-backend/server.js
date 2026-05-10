@@ -3,42 +3,43 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { Pool } = require('pg');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+const authRoutes = require('./routes/auth');
+const articleRoutes = require('./routes/articles');
+const userRoutes = require('./routes/users');
+const likeRoutes = require('./routes/likes');
 
 const app = express();
 
-// ===== ПОДКЛЮЧЕНИЕ К БД =====
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+// ===== НАСТРОЙКА CLOUDINARY =====
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Проверка подключения к БД
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('❌ Ошибка подключения к БД:', err.message);
-    } else {
-        console.log('✅ База данных подключена успешно');
-        release();
-    }
+// Настройка хранилища для картинок
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'poznanie_uploads',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
+    transformation: [{ width: 1200, height: 800, crop: 'limit' }],
+  },
 });
 
-
-// ТЕСТОВЫЙ МАРШРУТ ДЛЯ ДИАГНОСТИКИ
-app.get('/test', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        message: 'Backend is running!',
-        time: new Date().toISOString(),
-        env: process.env.NODE_ENV
-    });
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
+// =================================
 
-// ===== CORS =====
+// Динамический CORS
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://poznanie-frontend-g3ty.onrender.com']
-    : ['http://localhost:3000'];
+  ? ['https://poznanie-frontend-g3ty.onrender.com']
+  : ['http://localhost:3000'];
 
 app.use(cors({
     origin: allowedOrigins,
@@ -49,117 +50,35 @@ app.use(cors({
 
 app.use(express.json());
 
-// ===== ЗАГРУЗКА ФАЙЛОВ =====
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, 'uploads');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-        cb(null, uniqueName);
-    }
-});
-
-const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const filetypes = /jpeg|jpg|png|gif|webp/;
-        const mimetype = filetypes.test(file.mimetype);
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        if (mimetype && extname) return cb(null, true);
-        cb(new Error('Только изображения!'));
-    }
-});
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+// Эндпоинт для загрузки картинок (теперь в Cloudinary)
 app.post('/api/upload', upload.single('image'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
-    res.json({ imageUrl: `${baseUrl}/uploads/${req.file.filename}` });
+  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+  // Cloudinary сам возвращает URL картинки
+  res.json({ imageUrl: req.file.path });
 });
 
-// ===== ИМПОРТ РОУТОВ =====
-const authRoutes = require('./routes/auth');
-const articleRoutes = require('./routes/articles');
-const userRoutes = require('./routes/users');
-const likeRoutes = require('./routes/likes');
-
-// ===== РОУТЫ =====
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/likes', likeRoutes);
 
-// Health check
-app.get('/api/health', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT NOW()');
-        res.json({ status: 'OK', database: 'connected', time: result.rows[0].now });
-    } catch (error) {
-        res.status(500).json({ status: 'ERROR', database: 'disconnected', error: error.message });
-    }
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// ===== СТАТИКА ДЛЯ ФРОНТА (опционально) =====
+// Продакшен: отдаём фронтенд
 if (process.env.NODE_ENV === 'production') {
-    const frontendPath = path.join(__dirname, '../frontend/dist');
-    if (fs.existsSync(frontendPath)) {
-        app.use(express.static(frontendPath));
-        app.get('*', (req, res) => {
-            res.sendFile(path.join(frontendPath, 'index.html'));
-        });
-    }
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  }
 }
 
-
-// ДИАГНОСТИКА БД (только чтение, данные не меняет)
-app.get('/api/debug/check-db', async (req, res) => {
-    try {
-        // Проверяем подключение
-        const timeResult = await pool.query('SELECT NOW() as time');
-        
-        // Считаем пользователей (без раскрытия данных)
-        const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
-        
-        // Считаем статьи
-        const articleCount = await pool.query('SELECT COUNT(*) as count FROM articles');
-        
-        // Проверяем наличие таблиц
-        const tables = await pool.query(`
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name
-        `);
-        
-        res.json({
-            success: true,
-            dbTime: timeResult.rows[0].time,
-            databaseUrl: process.env.DATABASE_URL ? 'set' : 'not set',
-            userCount: parseInt(userCount.rows[0].count),
-            articleCount: parseInt(articleCount.rows[0].count),
-            tables: tables.rows.map(t => t.table_name),
-            message: 'БД доступна!'
-        });
-    } catch (error) {
-        res.json({
-            success: false,
-            error: error.message,
-            hint: 'Проверь DATABASE_URL и SSL настройки'
-        });
-    }
-});
-
-
-// ===== ЗАПУСК =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`\n🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`🌍 Режим: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 CORS разрешён для: ${allowedOrigins.join(', ')}`);
-    console.log(`💾 База данных: ${process.env.DATABASE_URL ? 'настроена ✅' : 'не настроена ❌'}\n`);
+    console.log(`✅ Server running on port ${PORT}`);
 });
